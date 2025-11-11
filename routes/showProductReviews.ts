@@ -28,7 +28,18 @@ global.sleep = (time: number) => {
 export function showProductReviews () {
   return (req: Request, res: Response, next: NextFunction) => {
     // Truncate id to avoid unintentional RCE
-    const id = !utils.isChallengeEnabled(challenges.noSqlCommandChallenge) ? Number(req.params.id) : utils.trunc(req.params.id, 40)
+    const idParam = req.params.id
+    let id: string | number
+    if (!utils.isChallengeEnabled(challenges.noSqlCommandChallenge)) {
+      // Validate that id is a non-negative integer to prevent injection and invalid queries
+      if (!/^[0-9]+$/.test(String(idParam))) {
+        res.status(400).json({ error: 'Invalid product id' })
+        return
+      }
+      id = Number(idParam)
+    } else {
+      id = utils.trunc(idParam, 40)
+    }
 
     // Measure how long the query takes, to check if there was a nosql dos attack
     const t0 = new Date().getTime()
