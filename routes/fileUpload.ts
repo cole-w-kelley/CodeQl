@@ -39,11 +39,23 @@ function handleZipFileUpload ({ file }: Request, res: Response, next: NextFuncti
               .pipe(unzipper.Parse())
               .on('entry', function (entry: any) {
                 const fileName = entry.path
-                const absolutePath = path.resolve('uploads/complaints/' + fileName)
-                challengeUtils.solveIf(challenges.fileWriteChallenge, () => { return absolutePath === path.resolve('ftp/legal.md') })
-                if (absolutePath.includes(path.resolve('.'))) {
-                  entry.pipe(fs.createWriteStream('uploads/complaints/' + fileName).on('error', function (err) { next(err) }))
+                const uploadsDir = path.resolve('uploads/complaints')
+                const targetPath = path.resolve(uploadsDir, fileName)
+                // Keep the original challenge trigger but use the resolved targetPath
+                challengeUtils.solveIf(challenges.fileWriteChallenge, () => { return targetPath === path.resolve('ftp/legal.md') })
+                // Prevent path traversal: ensure targetPath is inside uploadsDir
+                const relative = path.relative(uploadsDir, targetPath)
+                if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+                  // Ensure parent directories exist
+                  try {
+                    fs.mkdirSync(path.dirname(targetPath), { recursive: true })
+                  } catch (err) {
+                    next(err)
+                    return
+                  }
+                  entry.pipe(fs.createWriteStream(targetPath).on('error', function (err) { next(err) }))
                 } else {
+                  // Detected attempted path traversal — skip writing this entry
                   entry.autodrain()
                 }
               }).on('error', function (err: unknown) { next(err) })
