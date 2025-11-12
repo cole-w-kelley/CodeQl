@@ -15,8 +15,6 @@ export function updateProductReviews () {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = security.authenticatedUsers.from(req) // vuln-code-snippet vuln-line forgedReviewChallenge
 
-    // Simple validation: ensure the provided id is a primitive (string or number).
-    // Reject objects/arrays to prevent NoSQL injection via crafted query objects.
     const rawId = req.body.id
     if (rawId == null || (typeof rawId !== 'string' && typeof rawId !== 'number')) {
       return res.status(400).json({ error: 'Invalid id' })
